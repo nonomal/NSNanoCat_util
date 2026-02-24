@@ -10,6 +10,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)。
 
+## [2.1.6] - 2026-02-24
+
+### Fixed / 修复
+- `fix(Storage)`: improve `removeItem` / `clear` behavior in Node.js environment; 完善 Node.js 环境下 `removeItem` / `clear` 方法（`47de721`）。
+
+### Added / 新增
+- `feat(getStorage)`: export helper functions with type definitions and docs updates; 导出 `getStorage` 辅助函数并同步类型定义与文档（`ccd91f3`）。
+
+### Changed / 变更
+- `refactor(getStorage)`: rename `string2array` to `value2array` and switch parsing logic to `switch`; 重命名 `string2array` 为 `value2array`，并将解析逻辑调整为 `switch` 语法（`4628920`）。
+
 ## [2.1.5] - 2026-02-21
 
 ### Changed / 变更
@@ -66,6 +77,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
 
+[2.1.6]: https://github.com/NSNanoCat/util/compare/v2.1.5...v2.1.6
 [2.1.5]: https://github.com/NSNanoCat/util/compare/v2.1.4...v2.1.5
 [2.1.4]: https://github.com/NSNanoCat/util/compare/v2.1.3...v2.1.4
 [2.1.3]: https://github.com/NSNanoCat/util/compare/v2.1.2...v2.1.3

@@ -430,10 +430,12 @@ const store = getStorage("@my_box", ["YouTube", "Global"], database);
 #### `Storage.removeItem(keyName)`
 - Quantumult X：可用（`$prefs.removeValueForKey`）。
 - Surge：通过 `$persistentStore.write(null, keyName)` 删除。
-- Loon / Stash / Egern / Shadowrocket / Node.js：返回 `false`。
+- Node.js：可用（删除 `box.dat` 中对应 key 并落盘）。
+- Loon / Stash / Egern / Shadowrocket：返回 `false`。
 
 #### `Storage.clear()`
 - Quantumult X：可用（`$prefs.removeAllValues`）。
+- Node.js：可用（清空 `box.dat` 并落盘）。
 - 其他平台：返回 `false`。
 
 #### Node.js 特性
@@ -442,7 +444,7 @@ const store = getStorage("@my_box", ["YouTube", "Global"], database);
 
 与 Web Storage 的行为差异：
 - 支持 `@key.path` 深路径读写（Web Storage 原生不支持）。
-- `removeItem/clear` 仅部分平台可用（目前为 Quantumult X，以及 Surge 的 `removeItem`）。
+- `removeItem/clear` 仅部分平台可用（目前为 Quantumult X、Node.js，以及 Surge 的 `removeItem`）。
 - `getItem` 会尝试 `JSON.parse`，`setItem` 写入对象会 `JSON.stringify`。
 
 平台后端映射：
@@ -622,7 +624,7 @@ console.log(value); // 1
 | 通知 | `$notify` | `$notification.post` | `$notification.post` | `$notification.post` | `$notification.post` | `$notification.post` | 无 |
 | 持久化 | `$prefs` | `$persistentStore` | `$persistentStore` | `$persistentStore` | `$persistentStore` | `$persistentStore` | `box.dat` |
 | 结束脚本 | `$done` | `$done` | `$done` | `$done` | `$done` | `$done` | `process.exit(1)` |
-| `removeItem/clear` | 可用 | 不可用 | `removeItem` 可用 / `clear` 不可用 | 不可用 | 不可用 | 不可用 | 不可用 |
+| `removeItem/clear` | 可用 | 不可用 | `removeItem` 可用 / `clear` 不可用 | 不可用 | 不可用 | 不可用 | 可用 |
 | `policy` 注入（`fetch/done`） | `opts.policy` | `node` | `X-Surge-Policy`(done) | `X-Stash-Selected-Proxy` | 无专门映射 | `X-Surge-Proxy`(fetch) | 无 |
 
 ## 已知限制与注意事项
