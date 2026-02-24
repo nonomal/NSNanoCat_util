@@ -106,12 +106,20 @@ export default function getStorage(key, names, database) {
 	/***************** traverseObject *****************/
 	traverseObject(Root.Settings, (key, value) => {
 		Console.debug("☑️ traverseObject", `${key}: ${typeof value}`, `${key}: ${JSON.stringify(value)}`);
-		if (value === "true" || value === "false")
-			value = JSON.parse(value); // 字符串转Boolean
-		else if (typeof value === "string") {
-			if (value.includes(","))
-				value = value.split(",").map(item => string2number(item)); // 字符串转数组转数字
-			else value = string2number(value); // 字符串转数字
+		switch (typeof value) {
+			case "string":
+				switch (value) {
+					case "true":
+					case "false":
+					case "[]":
+						value = JSON.parse(value); // 字符串转Boolean/空数组
+						break;
+					default:
+						if (value.includes(","))
+							value = value2array(value).map(item => string2number(item)); // 字符串转数组转数字
+						else value = string2number(value); // 字符串转数字
+				}
+				break;
 		}
 		return value;
 	});
@@ -149,13 +157,20 @@ export function string2number(string) {
 }
 
 /**
- * 将字符串包装为数组。
- * Split comma-separated string into array.
+ * 将值包装为数组。
+ * Split value into array.
  *
- * @param {string|string[]|null|undefined} string 输入值 / Input value.
- * @returns {string[]}
+ * @param {string|number|boolean|string[]|null|undefined} value 输入值 / Input value.
+ * @returns {(string|number|boolean)[]}
  */
-export function string2array(string) {
-	if (Array.isArray(string)) return string;
-	return string?.split(",") ?? [];
+export function value2array(value) {
+	switch (typeof value) {
+		case "string":
+			return value.split(",");
+		case "number":
+		case "boolean":
+			return [value];
+		default:
+			return value || [];
+	}
 }

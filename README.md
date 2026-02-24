@@ -341,14 +341,14 @@ const store = getStorage("@my_box", ["YouTube", "Global"], database);
 `getStorage.mjs` 同时导出以下辅助函数：
 - `traverseObject(o, c)`：深度遍历对象并替换叶子值
 - `string2number(string)`：将纯数字字符串转换为数字
-- `string2array(string)`：按逗号拆分字符串为数组
+- `value2array(value)`：字符串按逗号拆分；数字/布尔值会被包装为单元素数组
 
 示例：
 ```js
 import getStorage, {
   traverseObject,
   string2number,
-  string2array,
+  value2array,
 } from "@nsnanocat/util/getStorage.mjs";
 
 const store = getStorage("@my_box", ["YouTube", "Global"], database);

@@ -128,7 +128,7 @@ declare module "@nsnanocat/util/getStorage.mjs" {
 
 	export function string2number(string: string): string | number;
 
-	export function string2array(string: string | string[] | null | undefined): string[];
+	export function value2array(value: string | number | boolean | string[] | null | undefined): Array<string | number | boolean>;
 
 	export default function getStorage(
 		key: string,
