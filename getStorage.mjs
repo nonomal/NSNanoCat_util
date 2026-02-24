@@ -128,7 +128,7 @@ export default function getStorage(key, names, database) {
  * @param {(key: string, value: any) => any} c 处理回调 / Transformer callback.
  * @returns {Record<string, any>}
  */
-function traverseObject(o, c) {
+export function traverseObject(o, c) {
 	for (const t in o) {
 		const n = o[t];
 		o[t] = "object" === typeof n && null !== n ? traverseObject(n, c) : c(t, n);
@@ -143,7 +143,19 @@ function traverseObject(o, c) {
  * @param {string} string 输入字符串 / Input string.
  * @returns {string|number}
  */
-function string2number(string) {
+export function string2number(string) {
 	if (/^\d+$/.test(string)) string = Number.parseInt(string, 10);
 	return string;
+}
+
+/**
+ * 将字符串包装为数组。
+ * Split comma-separated string into array.
+ *
+ * @param {string|string[]|null|undefined} string 输入值 / Input value.
+ * @returns {string[]}
+ */
+export function string2array(string) {
+	if (Array.isArray(string)) return string;
+	return string?.split(",") ?? [];
 }

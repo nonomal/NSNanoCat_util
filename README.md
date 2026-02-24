@@ -87,7 +87,7 @@ import {
 ### 仓库中存在但未从主入口导出
 - `lib/environment.mjs`
 - `lib/runScript.mjs`
-- `getStorage.mjs`（薯条项目自用，仅当你的存储结构与薯条项目一致时再使用）
+- `getStorage.mjs`（薯条项目自用，仅当你的存储结构与薯条项目一致时再使用；请通过子路径 `@nsnanocat/util/getStorage.mjs` 导入）
 
 ## 模块依赖关系
 
@@ -332,6 +332,24 @@ await runScript("$done({})", { timeout: 20 });
 示例：
 ```js
 import getStorage from "@nsnanocat/util/getStorage.mjs";
+
+const store = getStorage("@my_box", ["YouTube", "Global"], database);
+```
+
+#### 命名导出（辅助函数）
+
+`getStorage.mjs` 同时导出以下辅助函数：
+- `traverseObject(o, c)`：深度遍历对象并替换叶子值
+- `string2number(string)`：将纯数字字符串转换为数字
+- `string2array(string)`：按逗号拆分字符串为数组
+
+示例：
+```js
+import getStorage, {
+  traverseObject,
+  string2number,
+  string2array,
+} from "@nsnanocat/util/getStorage.mjs";
 
 const store = getStorage("@my_box", ["YouTube", "Global"], database);
 ```
