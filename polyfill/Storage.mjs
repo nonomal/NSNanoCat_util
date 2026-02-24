@@ -208,7 +208,11 @@ export class Storage {
 						result = $prefs.removeValueForKey(keyName);
 						break;
 					case "Node.js":
-						result = false;
+						// result = false;
+						Storage.data = Storage.#loaddata(Storage.dataFile);
+						delete Storage.data[keyName];
+						Storage.#writedata(Storage.dataFile);
+						result = true;
 						break;
 					default:
 						result = false;
@@ -239,7 +243,11 @@ export class Storage {
 				result = $prefs.removeAllValues();
 				break;
 			case "Node.js":
-				result = false;
+				// result = false;
+				Storage.data = Storage.#loaddata(Storage.dataFile);
+				Storage.data = {};
+				Storage.#writedata(Storage.dataFile);
+				result = true;
 				break;
 			default:
 				result = false;
