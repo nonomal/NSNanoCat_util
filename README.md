@@ -1,11 +1,11 @@
 # @nsnanocat/util
 
-用于统一 Quantumult X / Loon / Shadowrocket / Node.js / Egern / Surge / Stash 脚本接口的通用工具库。
+用于统一 Quantumult X / Loon / Shadowrocket / Worker / Node.js / Egern / Surge / Stash 脚本接口的通用工具库。
 
 核心目标：
 - 统一不同平台的 HTTP、通知、持久化、结束脚本等调用方式。
 - 在一个脚本里尽量少写平台分支。
-- 提供一组可直接复用的 polyfill（`fetch` / `Storage` / `Console` / `Lodash`）。
+ - 提供一组可直接复用的 polyfill（`fetch` / `Storage` / `Console` / `Lodash` / `qs`）。
 
 ## 目录
 - [安装与导入](#安装与导入)
@@ -56,16 +56,17 @@ npm i @nsnanocat/util@latest
 
 ```js
 import {
-  $app,       // 当前平台名（如 "Surge" / "Loon" / "Quantumult X" / "Node.js"）
+  $app,       // 当前平台名（如 "Surge" / "Loon" / "Quantumult X" / "Worker" / "Node.js"）
   $argument,  // 已标准化的模块参数对象（导入包时自动处理字符串 -> 对象）
   done,       // 统一结束脚本函数（内部自动适配各平台 $done 差异）
-  fetch,      // 统一 HTTP 请求函数（内部自动适配 $httpClient / $task / Node fetch）
+  fetch,      // 统一 HTTP 请求函数（内部自动适配 $httpClient / $task / fetch）
   notification, // 统一通知函数（内部自动适配 $notify / $notification.post）
   time,       // 时间格式化工具
   wait,       // 延时等待工具（Promise）
   Console,    // 统一日志工具（支持 logLevel）
   Lodash as _, // Lodash 建议按官方示例惯例使用 `_` 作为工具对象别名
-  Storage,    // 统一持久化存储接口（适配 $prefs / $persistentStore / 文件）
+  qs,         // 查询字符串工具（parse / stringify）
+  Storage,    // 统一持久化存储接口（适配 $prefs / $persistentStore / 内存 / 文件）
 } from "@nsnanocat/util";
 ```
 
@@ -81,6 +82,7 @@ import {
 - `polyfill/Console.mjs`
 - `polyfill/fetch.mjs`
 - `polyfill/Lodash.mjs`
+- `polyfill/qs.mjs`
 - `polyfill/StatusTexts.mjs`
 - `polyfill/Storage.mjs`
 
@@ -99,15 +101,16 @@ import {
 | --- | --- | --- | --- |
 | `lib/app.mjs` | 无 | 无 | 核心平台识别源头，供其他差异模块分流 |
 | `lib/environment.mjs` | `lib/app.mjs` | `$app` | 按平台生成统一 `$environment`（尤其补齐 `app` 字段） |
-| `lib/argument.mjs` | `polyfill/Console.mjs`, `polyfill/Lodash.mjs` | `Console.debug`, `Console.logLevel`, `Lodash.set` | 统一 `$argument` 结构并支持深路径写入 |
+| `lib/argument.mjs` | `polyfill/Console.mjs`, `polyfill/qs.mjs` | `Console.debug`, `Console.logLevel`, `qs.parse` | 统一 `$argument` 结构，并委托 `qs.parse` 处理字符串/对象/空值输入 |
 | `lib/done.mjs` | `lib/app.mjs`, `polyfill/Console.mjs`, `polyfill/Lodash.mjs`, `polyfill/StatusTexts.mjs` | `$app`, `Console.log`, `Lodash.set`, `Lodash.pick`, `StatusTexts` | 将各平台 `$done` 参数格式拉平并兼容状态码/策略字段 |
 | `lib/notification.mjs` | `lib/app.mjs`, `polyfill/Console.mjs` | `$app`, `Console.group`, `Console.log`, `Console.groupEnd`, `Console.error` | 将通知参数映射到各平台通知接口并统一日志输出 |
 | `lib/runScript.mjs` | `polyfill/Console.mjs`, `polyfill/fetch.mjs`, `polyfill/Storage.mjs`, `polyfill/Lodash.mjs` | `Console.error`, `fetch`, `Storage.getItem`（`Lodash` 当前版本未实际调用） | 读取 BoxJS 配置并发起统一 HTTP 调用执行脚本 |
 | `getStorage.mjs` | `lib/argument.mjs`, `polyfill/Console.mjs`, `polyfill/Lodash.mjs`, `polyfill/Storage.mjs` | `Console.debug`, `Console.logLevel`, `Lodash.merge`, `Storage.getItem` | 先标准化 `$argument`，再合并默认配置/持久化配置/运行参数 |
-| `polyfill/Console.mjs` | `lib/app.mjs` | `$app` | 日志在 Node.js 与 iOS 脚本环境使用不同错误输出策略 |
+| `polyfill/Console.mjs` | `lib/app.mjs` | `$app` | 日志在 Worker / Node.js 与 iOS 脚本环境使用不同错误输出策略 |
 | `polyfill/fetch.mjs` | `lib/app.mjs`, `polyfill/Lodash.mjs`, `polyfill/StatusTexts.mjs`, `polyfill/Console.mjs` | `$app`, `Lodash.set`, `StatusTexts`（`Console` 当前版本未实际调用） | 按平台选请求引擎并做参数映射、响应结构统一 |
 | `polyfill/Storage.mjs` | `lib/app.mjs`, `polyfill/Lodash.mjs` | `$app`, `Lodash.get`, `Lodash.set`, `Lodash.unset` | 按平台选持久化后端并支持 `@key.path` 读写 |
 | `polyfill/Lodash.mjs` | 无 | 无 | 提供路径/合并等基础能力，被多个模块复用 |
+| `polyfill/qs.mjs` | `polyfill/Lodash.mjs` | `Lodash.get`, `Lodash.set`, `Lodash.toPath` | 提供查询字符串与对象之间的解析/序列化能力 |
 | `polyfill/StatusTexts.mjs` | 无 | 无 | 提供 HTTP 状态文案，供 `fetch/done` 使用 |
 | `index.js` / `lib/index.js` / `polyfill/index.js` | 多个模块 | `export *` | 聚合导出，不含业务逻辑 |
 
@@ -116,7 +119,7 @@ import {
 ### `lib/app.mjs` 与 `lib/environment.mjs`（平台识别与环境）
 
 #### `$app`
-- 类型：`"Quantumult X" | "Loon" | "Shadowrocket" | "Egern" | "Surge" | "Stash" | "Node.js" | undefined`
+- 类型：`"Quantumult X" | "Loon" | "Shadowrocket" | "Egern" | "Surge" | "Stash" | "Worker" | "Node.js" | undefined`
 - 角色：核心模块。库内所有存在平台行为差异的模块都会先读取 `$app` 再分流（如 `done`、`notification`、`fetch`、`Storage`、`Console`、`environment`）。
 - 读取方式：
 
@@ -133,9 +136,10 @@ console.log(appName);
 4. 存在 `Egern` -> `Egern`
 5. 存在 `$environment` 且有 `surge-version` -> `Surge`
 6. 存在 `$environment` 且有 `stash-version` -> `Stash`
-7. 存在 `process.versions.node` -> `Node.js`
-8. 默认回落 -> `undefined`
-- 实现细节：内部使用 `'key' in globalThis` 检测平台标记，避免 `Object.keys(globalThis)` 漏掉不可枚举全局变量；因此在 Workers / Vercel 风格全局对象存在时，只要 `process.versions.node` 可用，仍会识别为 `Node.js`。
+7. 存在 `Cloudflare` -> `Worker`
+8. 存在 `process.versions.node` -> `Node.js`
+9. 默认回落 -> `undefined`
+- 实现细节：内部使用 `'key' in globalThis` 检测平台标记，避免 `Object.keys(globalThis)` 漏掉不可枚举全局变量；当前 Worker 识别以 `Cloudflare` 全局标记为准。
 
 #### `$environment` / `environment()`
 - 路径：`lib/environment.mjs`（未从包主入口导出）
@@ -157,6 +161,7 @@ console.log(environment()); // 当前环境对象
 | Egern | 读取全局 `$environment`，再写入 `app` | `{ ..., app: "Egern" }` |
 | Loon | 读取全局 `$loon` 字符串并拆分 | `{ device, ios, "loon-version", app: "Loon" }` |
 | Quantumult X | 不读取额外环境字段，直接构造对象 | `{ app: "Quantumult X" }` |
+| Worker | 直接构造对象 | `{ app: "Worker" }` |
 | Node.js | 读取 `process.env` 并写入 `process.env.app` | `{ ..., app: "Node.js" }` |
 | 其他 | 无 | `{}` |
 
@@ -168,6 +173,7 @@ console.log(environment()); // 当前环境对象
 - 通过包入口导入（`import ... from "@nsnanocat/util"`）时会自动执行本模块。
 - JSCore 环境不支持 `await import`，请使用静态导入或直接走包入口导入。
 - 读取到的 `$argument` 会按 URL Params 样式格式化为对象，并支持深路径。
+- 内部实现统一委托给 `qs.parse(globalThis.$argument)`。
 - 你也可以通过 `import { $argument } from "@nsnanocat/util"` 读取当前已标准化的 `$argument` 快照。
 - 平台输入差异说明：
   - Surge / Stash / Egern：脚本参数通常以字符串形式传入（如 `a=1&b=2`）。
@@ -194,7 +200,7 @@ console.log($argument); // { mode: "on", a: { b: "1" } }
 
 #### `done(object = {})`
 - 签名：`done(object?: object): void`
-- 作用：统一不同平台的脚本结束接口（`$done` / Node 退出）。
+- 作用：统一不同平台的脚本结束接口（`$done` / Worker 日志结束 / Node 退出）。
 
 说明：下表描述的是各 App 原生接口差异与本库内部映射逻辑。调用方只需要按 `done` 的统一参数传值即可，不需要自己再写平台分支。
 
@@ -216,12 +222,14 @@ console.log($argument); // { mode: "on", a: { b: "1" } }
 | Egern | 不转换 | 透传 | 透传 | `$done(object)` |
 | Shadowrocket | 不转换 | 透传 | 透传 | `$done(object)` |
 | Quantumult X | 写入 `opts.policy` | `number` 会转 `HTTP/1.1 200 OK` 字符串 | 仅保留 `status/url/headers/body/bodyBytes`；`ArrayBuffer/TypedArray` 转 `bodyBytes` | `$done(object)` |
+| Worker | 不适用 | 不适用 | 不适用 | 仅记录结束日志 |
 | Node.js | 不适用 | 不适用 | 不适用 | `process.exit(1)` |
 
 不可用/差异点：
 - `policy` 在 Egern / Shadowrocket 分支不做映射。
 - Quantumult X 会丢弃未在白名单内的字段。
 - Quantumult X 的 `status` 在部分场景要求完整状态行（如 `HTTP/1.1 200 OK`），本库会在传入数字状态码时自动拼接（依赖 `StatusTexts`）。
+- Worker 不调用 `$done`，仅记录结束日志。
 - Node.js 不调用 `$done`，而是直接退出进程，且退出码固定为 `1`。
 - 未识别平台（`$app === undefined`）只记录结束日志，不会尝试调用 `$done` 或退出进程。
 
@@ -252,11 +260,13 @@ console.log($argument); // { mode: "on", a: { b: "1" } }
 | Shadowrocket | `$notification.post` | `{ openUrl: content }` | 走 Surge 分支的 action/url/text/media 字段 |
 | Loon | `$notification.post` | `{ openUrl: content }` | `openUrl`、`mediaUrl`（仅 http/https） |
 | Quantumult X | `$notify` | `{ "open-url": content }` | `open-url`、`media-url`（仅 http/https）、`update-pasteboard` |
+| Worker | 不发送通知（非 iOS App 环境） | 无 | 无 |
 | Node.js | 不发送通知（非 iOS App 环境） | 无 | 无 |
 
 不可用/差异点：
 - `copy/update-pasteboard` 在 Loon 分支不会生效。
 - Loon / Quantumult X 对 `media` 仅接受网络 URL；Base64 媒体不会自动映射。
+- Worker 不是 iOS App 脚本环境，不支持 iOS 通知行为；当前分支仅日志输出。
 - Node.js 不是 iOS App 脚本环境，不支持 iOS 通知行为；当前分支仅日志输出。
 
 ### `lib/time.mjs`
@@ -384,7 +394,7 @@ const store = getStorage("@my_box", ["YouTube", "Global"], database);
 - `timeout`
 - `policy`
 - `redirection` / `auto-redirect`
-- `auto-cookie`（仅 Node.js 分支识别；默认启用，传入 `false` / `0` / `-1` 可关闭）
+- `auto-cookie`（Worker / Node.js 共享分支识别；默认启用，传入 `false` / `0` / `-1` 可关闭）
 
 说明：下表是各 App 原生 HTTP 接口的差异补充，以及本库 `fetch` 的内部映射方式。调用方使用统一入参即可。
 
@@ -398,6 +408,7 @@ const store = getStorage("@my_box", ["YouTube", "Global"], database);
 | Egern | `$httpClient[method]` | 秒 | 无专门映射 | `auto-redirect` | 同上 |
 | Shadowrocket | `$httpClient[method]` | 秒 | `headers.X-Surge-Proxy` | `auto-redirect` | 同上 |
 | Quantumult X | `$task.fetch` | 毫秒（内部乘 1000） | `opts.policy` | `opts.redirection` | `body(ArrayBuffer/TypedArray)` 转 `bodyBytes`；响应按 `Content-Type` 恢复到 `body` |
+| Worker | `globalThis.fetch`（不存在时回退 `node-fetch`）；共享 `auto-cookie` 处理 | 毫秒（内部乘 1000） | 无 | `redirect: follow/manual` | 返回 `body`(UTF-8 string) + `bodyBytes`(ArrayBuffer) |
 | Node.js | `globalThis.fetch`（不存在时回退 `node-fetch`）；默认按需包裹 `fetch-cookie` | 毫秒（内部乘 1000） | 无 | `redirect: follow/manual` | 返回 `body`(UTF-8 string) + `bodyBytes`(ArrayBuffer) |
 
 返回对象（统一后）常见字段：
@@ -410,9 +421,9 @@ const store = getStorage("@my_box", ["YouTube", "Global"], database);
 - `bodyBytes`
 
 不可用/差异点：
-- `policy` 在 Surge / Egern / Node.js 分支没有额外适配逻辑。
+- `policy` 在 Surge / Egern / Worker / Node.js 分支没有额外适配逻辑。
 - `redirection` 在部分平台会映射为 `auto-redirect` 或 `opts.redirection`。
-- Node.js 分支优先复用 `globalThis.fetch`；若不存在则回退到 `node-fetch`，并在 `auto-cookie` 未关闭时按需包裹 `fetch-cookie`。
+- Worker / Node.js 共享基于 `fetch` 的请求分支；若 `globalThis.fetch` 不存在则回退到 `node-fetch`，并在 `auto-cookie` 未关闭时按需包裹 `fetch-cookie`。
 - 传入 `timeout` 时，`5` 和 `5000` 都会被接受；库会先将用户输入归一化，再按平台要求转换为秒或毫秒。
 - 返回结构是统一兼容结构，不等同于浏览器 `Response` 对象。
 
@@ -435,21 +446,24 @@ const store = getStorage("@my_box", ["YouTube", "Global"], database);
 #### `Storage.removeItem(keyName)`
 - Quantumult X：可用（`$prefs.removeValueForKey`）。
 - Surge：通过 `$persistentStore.write(null, keyName)` 删除。
+- Worker：可用（仅删除内存缓存中的对应 key，不持久化）。
 - Node.js：可用（删除 `box.dat` 中对应 key 并落盘）。
 - Loon / Stash / Egern / Shadowrocket：返回 `false`。
 
 #### `Storage.clear()`
 - Quantumult X：可用（`$prefs.removeAllValues`）。
+- Worker：可用（仅清空内存缓存，不持久化）。
 - Node.js：可用（清空 `box.dat` 并落盘）。
 - 其他平台：返回 `false`。
 
-#### Node.js 特性
+#### Worker / Node.js 特性
+- Worker：使用进程内内存缓存，不写文件。
 - 数据文件默认：`box.dat`。
 - 读取路径优先级：当前目录 -> `process.cwd()`。
 
 与 Web Storage 的行为差异：
 - 支持 `@key.path` 深路径读写（Web Storage 原生不支持）。
-- `removeItem/clear` 仅部分平台可用（目前为 Quantumult X、Node.js，以及 Surge 的 `removeItem`）。
+- `removeItem/clear` 仅部分平台可用（目前为 Quantumult X、Worker、Node.js，以及 Surge 的 `removeItem`）。
 - `getItem` 会尝试 `JSON.parse`，`setItem` 写入对象会 `JSON.stringify`。
 
 平台后端映射：
@@ -458,6 +472,7 @@ const store = getStorage("@my_box", ["YouTube", "Global"], database);
 | --- | --- |
 | Surge / Loon / Stash / Egern / Shadowrocket | `$persistentStore.read/write` |
 | Quantumult X | `$prefs.valueForKey/setValueForKey` |
+| Worker | 进程内内存缓存 |
 | Node.js | 本地 `box.dat` |
 
 ### `polyfill/Console.mjs`
@@ -507,7 +522,7 @@ console.log(Console.logLevel); // "WARN"
 | `count(label)` | `label?: string` | `void` | 计数并输出 |
 | `countReset(label)` | `label?: string` | `void` | 重置计数器 |
 | `debug(...msg)` | `...msg: any[]` | `void` | 仅 `DEBUG/ALL` 级别输出 |
-| `error(...msg)` | `...msg: any[]` | `void` | Node.js 优先输出 `stack` |
+| `error(...msg)` | `...msg: any[]` | `void` | Worker / Node.js 优先输出 `stack` |
 | `exception(...msg)` | `...msg: any[]` | `void` | `error` 别名 |
 | `group(label)` | `label: string` | `void` | 压栈分组 |
 | `groupEnd()` | 无 | `void` | 出栈分组 |
@@ -519,7 +534,7 @@ console.log(Console.logLevel); // "WARN"
 | `warn(...msg)` | `...msg: any[]` | `void` | `WARN` 及以上 |
 
 平台差异：
-- Node.js 下 `error` 会优先打印 `Error.stack`。
+- Worker / Node.js 下 `error` 会优先打印 `Error.stack`。
 - 其他平台统一加前缀符号输出（`❌/⚠️/ℹ️/🅱️`）。
 
 ### `polyfill/Lodash.mjs`
@@ -611,6 +626,53 @@ console.log(value); // 1
 - `undefined` 不覆盖，`null` 会覆盖。
 - 直接修改目标对象（mutates target）。
 
+### `polyfill/qs.mjs`
+
+当前实现为项目内使用的轻量子集，不追求与官方 `qs` 完全一致。
+
+#### `qs.parse(query)`
+- 签名：`qs.parse(query?: string | object | null): object`
+- 作用：将查询字符串或对象输入归一化为支持深路径的对象。
+- 依赖：内部使用 `Lodash.set` 展开路径。
+
+当前行为：
+- 当 `query` 为 `string` 时：
+  - 按 `&` / `=` 切分。
+  - 去掉值中的双引号。
+  - 使用点路径或数组下标路径展开对象。
+- 当 `query` 为 `object` 时：
+  - 将 key 当路径写入新对象（`{"a.b":"1"}` -> `{ a: { b: "1" } }`）。
+- 当 `query` 为 `null` 或 `undefined` 时：
+  - 返回 `{}`。
+
+```js
+import { qs } from "@nsnanocat/util";
+
+console.log(qs.parse("mode=on&a.b=1"));
+// { mode: "on", a: { b: "1" } }
+
+console.log(qs.parse({ "list[0]": "x", "list[1]": "y" }));
+// { list: ["x", "y"] }
+```
+
+#### `qs.stringify(object)`
+- 签名：`qs.stringify(object?: object): string`
+- 作用：将对象按深路径展开为查询字符串。
+- 依赖：内部使用 `Lodash.get` 与 `Lodash.toPath` 读取并格式化路径。
+
+当前行为：
+- 普通对象输出为点路径（`a.b=1`）。
+- 数组输出为索引路径（`list[0]=x`）。
+- 值始终执行 `encodeURIComponent` 编码。
+- `null` 会序列化为空值（`key=`），`undefined` 会跳过。
+
+```js
+import { qs } from "@nsnanocat/util";
+
+console.log(qs.stringify({ a: { b: "1" }, list: ["x", "y"] }));
+// a.b=1&list%5B0%5D=x&list%5B1%5D=y
+```
+
 ### `polyfill/StatusTexts.mjs`
 
 #### `StatusTexts`
@@ -623,18 +685,19 @@ console.log(value); // 1
 
 说明：本节展示的是各平台原生脚本接口差异。实际在本库中，这些差异已由 `done`、`fetch`、`notification`、`Storage` 等模块做了统一适配。
 
-| 能力 | Quantumult X | Loon | Surge | Stash | Egern | Shadowrocket | Node.js |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| HTTP 请求 | `$task.fetch` | `$httpClient` | `$httpClient` | `$httpClient` | `$httpClient` | `$httpClient` | `fetch` |
-| 通知 | `$notify` | `$notification.post` | `$notification.post` | `$notification.post` | `$notification.post` | `$notification.post` | 无 |
-| 持久化 | `$prefs` | `$persistentStore` | `$persistentStore` | `$persistentStore` | `$persistentStore` | `$persistentStore` | `box.dat` |
-| 结束脚本 | `$done` | `$done` | `$done` | `$done` | `$done` | `$done` | `process.exit(1)` |
-| `removeItem/clear` | 可用 | 不可用 | `removeItem` 可用 / `clear` 不可用 | 不可用 | 不可用 | 不可用 | 可用 |
-| `policy` 注入（`fetch/done`） | `opts.policy` | `node` | `X-Surge-Policy`(done) | `X-Stash-Selected-Proxy` | 无专门映射 | `X-Surge-Proxy`(fetch) | 无 |
+| 能力 | Quantumult X | Loon | Surge | Stash | Egern | Shadowrocket | Worker | Node.js |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| HTTP 请求 | `$task.fetch` | `$httpClient` | `$httpClient` | `$httpClient` | `$httpClient` | `$httpClient` | `fetch` | `fetch` |
+| 通知 | `$notify` | `$notification.post` | `$notification.post` | `$notification.post` | `$notification.post` | `$notification.post` | 无 | 无 |
+| 持久化 | `$prefs` | `$persistentStore` | `$persistentStore` | `$persistentStore` | `$persistentStore` | `$persistentStore` | 内存缓存 | `box.dat` |
+| 结束脚本 | `$done` | `$done` | `$done` | `$done` | `$done` | `$done` | 仅日志 | `process.exit(1)` |
+| `removeItem/clear` | 可用 | 不可用 | `removeItem` 可用 / `clear` 不可用 | 不可用 | 不可用 | 不可用 | 可用 | 可用 |
+| `policy` 注入（`fetch/done`） | `opts.policy` | `node` | `X-Surge-Policy`(done) | `X-Stash-Selected-Proxy` | 无专门映射 | `X-Surge-Proxy`(fetch) | 无 | 无 |
 
 ## 已知限制与注意事项
 
 - `lib/argument.mjs` 为 `$argument` 标准化模块，`import` 时会按规则重写全局 `$argument`。
+- `lib/done.mjs` 在 Worker 仅记录结束日志。
 - `lib/done.mjs` 在 Node.js 固定 `process.exit(1)`。
 - `Storage.removeItem("@a.b")` 分支存在未声明变量写入风险；如要大量使用路径删除，建议先本地验证。
 - `lib/runScript.mjs` 未从包主入口导出，需要按文件路径直接导入。
@@ -661,6 +724,9 @@ console.log(value); // 1
 - [crossutility/Quantumult-X - sample-rewrite-with-script.js](https://raw.githubusercontent.com/crossutility/Quantumult-X/master/sample-rewrite-with-script.js)
 - [crossutility/Quantumult-X - sample-fetch-opts-policy.js](https://raw.githubusercontent.com/crossutility/Quantumult-X/master/sample-fetch-opts-policy.js)
 - [crossutility/Quantumult-X - sample-rewrite-response-header.js](https://github.com/crossutility/Quantumult-X/raw/refs/heads/master/sample-rewrite-response-header.js)
+
+### Worker
+- 以 `Cloudflare` 全局标记识别 Worker 运行时。
 
 ### Node.js
 - [Node.js Globals - fetch](https://nodejs.org/api/globals.html#fetch)

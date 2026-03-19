@@ -13,9 +13,8 @@
 	],
 	"license": "Apache-2.0",
 	"bugs": "https://github.com/NSNanoCat/util/issues",
-	"main": "index.js",
+	"main": "index.mjs",
 	"types": "types/nsnanocat-util.d.ts",
-	"type": "module",
 	"scripts": {
 		"tsc:build": "npx tsc",
 		"test": "node --test test/*.test.js",
@@ -28,7 +27,7 @@
 		"url": "git+https://github.com/NSNanoCat/util.git"
 	},
 	"files": [
-		"index.js",
+		"index.mjs",
 		"lib",
 		"polyfill",
 		"getStorage.mjs",
@@ -36,7 +35,7 @@
 	],
 	"devDependencies": {
 		"@biomejs/biome": "2.4.6",
-		"typescript": "^5.6.3"
+		"typescript": "^5.9.3"
 	},
 	"publishConfig": {
 		"registry": "https://registry.npmjs.org/",
