@@ -1,8 +1,8 @@
 import { $app } from "../lib/app.mjs";
 
 /**
- * 统一日志工具，兼容各脚本平台与 Node.js。
- * Unified logger compatible with script platforms and Node.js.
+ * 统一日志工具，兼容各脚本平台、Worker 与 Node.js。
+ * Unified logger compatible with script platforms, Worker, and Node.js.
  *
  * logLevel 用法:
  * logLevel usage:
@@ -99,8 +99,9 @@ export class Console {
 			default:
 				msg = msg.map(m => `❌ ${m}`);
 				break;
+			case "Worker":
 			case "Node.js":
-				msg = msg.map(m => `❌ ${m.stack}`);
+				msg = msg.map(m => `❌ ${m?.stack ?? m}`);
 				break;
 		}
 		Console.log(...msg);
@@ -223,27 +224,30 @@ export class Console {
 	 * 输出通用日志。
 	 * Print generic logs.
 	 *
+	 * 说明:
+	 * Notes:
+	 * - 多行字符串参数会按换行拆分为多个独立日志项。
+	 * - Multi-line string arguments are split into multiple log entries by line breaks.
+	 *
 	 * @param {...any} msg 日志内容 / Log messages.
 	 * @returns {void}
 	 */
 	static log = (...msg) => {
 		if (Console.#level === 0) return;
-		msg = msg.map(log => {
+		msg = msg.flatMap(log => {
 			switch (typeof log) {
 				case "object":
-					log = JSON.stringify(log);
-					break;
+					return [JSON.stringify(log)];
 				case "bigint":
 				case "number":
 				case "boolean":
+					return [log.toString()];
 				case "string":
-					log = log.toString();
-					break;
+					return log.split(/\r?\n/u);
 				case "undefined":
 				default:
-					break;
+					return [log];
 			}
-			return log;
 		});
 		Console.#groups.forEach(group => {
 			msg = msg.map(log => `  ${log}`);

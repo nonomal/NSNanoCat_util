@@ -1,5 +1,4 @@
 import { $app } from "../lib/app.mjs";
-import { Console } from "./Console.mjs";
 import { Lodash as _ } from "./Lodash.mjs";
 import { StatusTexts } from "./StatusTexts.mjs";
 
@@ -17,7 +16,7 @@ import { StatusTexts } from "./StatusTexts.mjs";
  * @property {string} [policy] 指定策略 / Preferred policy.
  * @property {boolean} [redirection] 是否跟随重定向 / Whether to follow redirects.
  * @property {boolean} ["auto-redirect"] 平台重定向字段 / Platform redirect flag.
- * @property {boolean|number|string} ["auto-cookie"] Node.js Cookie 开关 / Node.js Cookie toggle.
+ * @property {boolean|number|string} ["auto-cookie"] Worker / Node.js Cookie 开关 / Worker / Node.js Cookie toggle.
  * @property {Record<string, any>} [opts] 平台扩展字段 / Platform extension fields.
  */
 
@@ -43,13 +42,13 @@ import { StatusTexts } from "./StatusTexts.mjs";
  * Design goal:
  * - 仿照 Web API `fetch`（`Window.fetch`）接口设计
  * - Modeled after Web API `fetch` (`Window.fetch`)
- * - 统一 VPN App 与 Node.js 环境中的请求调用
- * - Unify request calls across VPN apps and Node.js
+ * - 统一 VPN App、Worker 与 Node.js 环境中的请求调用
+ * - Unify request calls across VPN apps, Worker, and Node.js
  *
  * 功能:
  * Features:
- * - 统一 Quantumult X / Loon / Surge / Stash / Egern / Shadowrocket / Node.js 请求接口
- * - Normalize request APIs across Quantumult X / Loon / Surge / Stash / Egern / Shadowrocket / Node.js
+ * - 统一 Quantumult X / Loon / Surge / Stash / Egern / Shadowrocket / Worker / Node.js 请求接口
+ * - Normalize request APIs across Quantumult X / Loon / Surge / Stash / Egern / Shadowrocket / Worker / Node.js
  * - 统一返回体字段（`ok/status/statusText/body/bodyBytes`）
  * - Normalize response fields (`ok/status/statusText/body/bodyBytes`)
  *
@@ -57,8 +56,10 @@ import { StatusTexts } from "./StatusTexts.mjs";
  * Known differences from Web `fetch`:
  * - 支持 `policy`、`auto-redirect` 等平台扩展字段
  * - Supports platform extension fields like `policy` and `auto-redirect`
- * - Node.js 分支默认启用 Cookie 透传，可通过 `auto-cookie` 关闭
- * - Node.js enables Cookie forwarding by default and can disable it via `auto-cookie`
+ * - Worker / Node.js 共享基于 `fetch` 的请求分支
+ * - Worker / Node.js share the `fetch`-based request branch
+ * - `auto-cookie` 在 Worker / Node.js 共享分支中识别
+ * - `auto-cookie` is recognized by the shared Worker / Node.js branch
  * - 非浏览器平台通过 `$httpClient/$task` 实现，不是原生 Fetch 实现
  * - Non-browser platforms use `$httpClient/$task` instead of native Fetch engine
  * - 返回结构包含 `statusCode/bodyBytes` 等兼容字段
@@ -103,20 +104,17 @@ export async function fetch(resource, options = {}) {
 	// 默认请求超时时间为 5 秒。
 	// Default request timeout to 5 seconds.
 	if (!resource.timeout) resource.timeout = 5;
-	// 智能矫正请求超时时间，兼容用户输入的秒或毫秒。
-	// Normalize timeout input so both seconds and milliseconds are accepted.
 	if (resource.timeout) {
 		resource.timeout = Number.parseInt(resource.timeout, 10);
 		// 统一先转换为秒，大于 500 视为毫秒输入。
 		// Convert to seconds first and treat values above 500 as milliseconds.
 		if (resource.timeout > 500) resource.timeout = Math.round(resource.timeout / 1000);
 	}
-	// 某些平台要求毫秒级超时，进行二次换算。
-	// Some platforms expect timeout in milliseconds, so convert again.
 	if (resource.timeout) {
 		switch ($app) {
 			case "Loon":
 			case "Quantumult X":
+			case "Worker":
 			case "Node.js":
 				// 这些平台要求毫秒，因此把秒重新换算为毫秒。
 				// These platforms expect milliseconds, so convert seconds back to milliseconds.
@@ -138,7 +136,6 @@ export async function fetch(resource, options = {}) {
 		case "Stash":
 		case "Egern":
 		case "Shadowrocket":
-		default:
 			// 转换通用请求参数到 `$httpClient` 语义。
 			// Map shared request fields to `$httpClient` semantics.
 			if (resource.policy) {
@@ -169,6 +166,7 @@ export async function fetch(resource, options = {}) {
 				case "application/vnd.google.protobuf":
 				case "application/vnd.apple.flatbuffer":
 				case "application/grpc":
+				case "application/grpc-web":
 				case "application/grpc+proto":
 				case "application/octet-stream":
 					resource["binary-mode"] = true;
@@ -219,6 +217,7 @@ export async function fetch(resource, options = {}) {
 							case "application/vnd.google.protobuf":
 							case "application/vnd.apple.flatbuffer":
 							case "application/grpc":
+							case "application/grpc-web":
 							case "application/grpc+proto":
 							case "application/octet-stream":
 								response.body = response.bodyBytes;
@@ -238,9 +237,10 @@ export async function fetch(resource, options = {}) {
 					}, resource.timeout);
 				}),
 			]);
+		case "Worker":
 		case "Node.js": {
-			// Node.js 优先复用原生/宿主 `fetch`，缺失时再回退到 `node-fetch`。
-			// Reuse host `fetch` in Node.js when available and fall back to `node-fetch` otherwise.
+			// Worker 复用宿主 `fetch`；Node.js 优先复用原生 `fetch`，缺失时再回退到 `node-fetch`。
+			// Worker reuses host `fetch`; Node.js reuses native `fetch` first and falls back to `node-fetch`.
 			if (!globalThis.fetch) globalThis.fetch = require("node-fetch");
 			switch (resource["auto-cookie"]) {
 				case undefined:
@@ -261,8 +261,8 @@ export async function fetch(resource, options = {}) {
 				case -1:
 					break;
 			}
-			// 将通用字段映射到 Node.js Fetch 语义。
-			// Map shared fields to Node.js Fetch semantics.
+			// 将通用字段映射到 Worker / Node.js Fetch 语义。
+			// Map shared fields to Worker / Node.js Fetch semantics.
 			resource.redirect = resource.redirection ? "follow" : "manual";
 			const { url, ...options } = resource;
 			// 发起请求并归一化响应头、文本与二进制响应体。
@@ -299,5 +299,7 @@ export async function fetch(resource, options = {}) {
 				}),
 			]);
 		}
+		default:
+			throw new Error(`${Function.name}: 当前平台不支持`);
 	}
 }

@@ -16,6 +16,8 @@ import { Lodash as _ } from "./Lodash.mjs";
  * Supported backends:
  * - Surge/Loon/Stash/Egern/Shadowrocket: `$persistentStore`
  * - Quantumult X: `$prefs`
+ * - Worker: 内存缓存（非持久化）
+ * - Worker: in-memory cache (non-persistent)
  * - Node.js: 本地 `box.dat`
  * - Node.js: local `box.dat`
  *
@@ -37,8 +39,8 @@ import { Lodash as _ } from "./Lodash.mjs";
  */
 export class Storage {
 	/**
-	 * Node.js 环境下的内存数据缓存。
-	 * In-memory data cache for Node.js runtime.
+	 * Worker / Node.js 环境下的内存数据缓存。
+	 * In-memory data cache for Worker / Node.js runtime.
 	 *
 	 * @type {Record<string, any>|null}
 	 */
@@ -80,7 +82,7 @@ export class Storage {
 				keyValue = _.get(value, path);
 				try {
 					keyValue = JSON.parse(keyValue);
-				} catch (e) {}
+				} catch {}
 				break;
 			}
 			default:
@@ -95,6 +97,10 @@ export class Storage {
 					case "Quantumult X":
 						keyValue = $prefs.valueForKey(keyName);
 						break;
+					case "Worker":
+						Storage.data = Storage.data ?? {};
+						keyValue = Storage.data[keyName];
+						break;
 					case "Node.js":
 						Storage.data = Storage.#loaddata(Storage.dataFile);
 						keyValue = Storage.data?.[keyName];
@@ -105,7 +111,7 @@ export class Storage {
 				}
 				try {
 					keyValue = JSON.parse(keyValue);
-				} catch (e) {
+				} catch {
 					// do nothing
 				}
 				break;
@@ -153,6 +159,11 @@ export class Storage {
 					case "Quantumult X":
 						result = $prefs.setValueForKey(keyValue, keyName);
 						break;
+					case "Worker":
+						Storage.data = Storage.data ?? {};
+						Storage.data[keyName] = keyValue;
+						result = true;
+						break;
 					case "Node.js":
 						Storage.data = Storage.#loaddata(Storage.dataFile);
 						Storage.data[keyName] = keyValue;
@@ -189,7 +200,7 @@ export class Storage {
 				keyName = key;
 				let value = Storage.getItem(keyName);
 				if (typeof value !== "object") value = {};
-				keyValue = _.unset(value, path);
+				_.unset(value, path);
 				result = Storage.setItem(keyName, value);
 				break;
 			}
@@ -206,6 +217,11 @@ export class Storage {
 						break;
 					case "Quantumult X":
 						result = $prefs.removeValueForKey(keyName);
+						break;
+					case "Worker":
+						Storage.data = Storage.data ?? {};
+						delete Storage.data[keyName];
+						result = true;
 						break;
 					case "Node.js":
 						// result = false;
@@ -224,8 +240,8 @@ export class Storage {
 	}
 
 	/**
-	 * 清空存储（仅 Quantumult X 支持）。
-	 * Clear storage (supported by Quantumult X only).
+	 * 清空存储。
+	 * Clear storage.
 	 *
 	 * @returns {boolean}
 	 */
@@ -241,6 +257,10 @@ export class Storage {
 				break;
 			case "Quantumult X":
 				result = $prefs.removeAllValues();
+				break;
+			case "Worker":
+				Storage.data = {};
+				result = true;
 				break;
 			case "Node.js":
 				// result = false;
@@ -266,8 +286,8 @@ export class Storage {
 	 */
 	static #loaddata = dataFile => {
 		if ($app === "Node.js") {
-			this.fs = this.fs ? this.fs : require("node:fs");
-			this.path = this.path ? this.path : require("node:path");
+			this.fs = this.fs ? this.fs : require("fs");
+			this.path = this.path ? this.path : require("path");
 			const curDirDataFilePath = this.path.resolve(dataFile);
 			const rootDirDataFilePath = this.path.resolve(process.cwd(), dataFile);
 			const isCurDirDataFile = this.fs.existsSync(curDirDataFilePath);
@@ -293,8 +313,8 @@ export class Storage {
 	 */
 	static #writedata = (dataFile = this.dataFile) => {
 		if ($app === "Node.js") {
-			this.fs = this.fs ? this.fs : require("node:fs");
-			this.path = this.path ? this.path : require("node:path");
+			this.fs = this.fs ? this.fs : require("fs");
+			this.path = this.path ? this.path : require("path");
 			const curDirDataFilePath = this.path.resolve(dataFile);
 			const rootDirDataFilePath = this.path.resolve(process.cwd(), dataFile);
 			const isCurDirDataFile = this.fs.existsSync(curDirDataFilePath);
